@@ -1,0 +1,10 @@
+# Claude Code / assistant working files — never publish these
+.claude/
+CLAUDE.md
+memory/
+MEMORY.md
+
+# Editor / OS cruft
+*.swp
+*~
+.DS_Store

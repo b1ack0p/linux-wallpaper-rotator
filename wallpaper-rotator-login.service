@@ -1,0 +1,13 @@
+[Unit]
+Description=Set a fresh desktop wallpaper at login / session start
+# Best-effort: wait for the graphical session if the desktop provides it.
+After=graphical-session.target
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/wallpaper-rotator.sh --auto
+
+[Install]
+# default.target is reached on every session start: boot->login,
+# logout->login, and shutdown->start->login.
+WantedBy=default.target
