@@ -45,11 +45,11 @@ everything installs under your home directory.
    ```
 2. Make the scripts executable (only needed the first time):
    ```bash
-   chmod +x setup.sh uninstall.sh wallpaper-rotator.sh
+   chmod +x linux-wallpaper-rotator.setup.sh linux-wallpaper-rotator.uninstall.sh linux-wallpaper-rotator.sh
    ```
 3. Run the interactive installer:
    ```bash
-   ./setup.sh
+   ./linux-wallpaper-rotator.setup.sh
    ```
    **Just 3 quick questions** (press **Enter** to accept each default):
    - **Desktop** — auto-detected; press Enter to keep it, or pick from the menu
@@ -161,11 +161,11 @@ AC power by default**, to save battery. Controlled by `ON_BATTERY` in the config
 - **`yes`** — rotate on battery too.
 
 This pause applies to automatic runs only. Running `wallpaper-rotator.sh`
-yourself (or re-running `./setup.sh`) **always** changes the wallpaper, because
+yourself (or re-running `./linux-wallpaper-rotator.setup.sh`) **always** changes the wallpaper, because
 you asked for it explicitly.
 
 Power state is read from `/sys/class/power_supply/`. **Desktops** (no battery)
-always count as AC, so this setting has no effect there — and `setup.sh` skips
+always count as AC, so this setting has no effect there — and `linux-wallpaper-rotator.setup.sh` skips
 the question entirely on a machine with no battery.
 
 ---
@@ -272,7 +272,7 @@ systemctl --user enable  wallpaper-rotator-login.service   # on
 Easiest: just **re-run the installer** — it's safe to run again and overwrites
 the old settings.
 ```bash
-./setup.sh
+./linux-wallpaper-rotator.setup.sh
 ```
 
 Prefer to edit by hand? Everything lives in one file —
@@ -295,13 +295,13 @@ fill/scaling mode is automatic and has no setting.
 ## Uninstall
 Run the uninstaller from the project directory:
 ```bash
-./uninstall.sh
+./linux-wallpaper-rotator.uninstall.sh
 ```
 It stops and disables the timer + login service, removes the installed script,
 units, config, state and cache, and **resets the desktop to its default
 wallpaper** (on GNOME/Cinnamon/MATE/XFCE). **Your wallpaper directories and images
 are left untouched** (delete those directories yourself if you also want the images
-gone). Re-install anytime with `./setup.sh`.
+gone). Re-install anytime with `./linux-wallpaper-rotator.setup.sh`.
 
 <details><summary>Prefer to do it by hand?</summary>
 
@@ -332,7 +332,7 @@ journalctl --user -u wallpaper-rotator-login.service -n 20 --no-pager  # login r
   `PATH`. Run it with the full path `~/.local/bin/wallpaper-rotator.sh`, or add
   `~/.local/bin` to your `PATH`.
 - **Wrong desktop / nothing changes visibly** — check the `DE=` value in
-  `~/.config/wallpaper-rotator.conf` matches your desktop, or re-run `./setup.sh`.
+  `~/.config/wallpaper-rotator.conf` matches your desktop, or re-run `./linux-wallpaper-rotator.setup.sh`.
 - **KDE at login** — `plasma-apply-wallpaperimage` occasionally races the
   desktop starting up; the very next timer tick corrects it.
 
@@ -340,7 +340,7 @@ journalctl --user -u wallpaper-rotator-login.service -n 20 --no-pager  # login r
 
 ## Supported desktops
 GNOME / Ubuntu, Cinnamon, MATE, KDE Plasma, XFCE, LXDE / LXQt, and any X11
-desktop via `feh`. Selected in `setup.sh` and stored in
+desktop via `feh`. Selected in `linux-wallpaper-rotator.setup.sh` and stored in
 `~/.config/wallpaper-rotator.conf`.
 
 ---
@@ -353,12 +353,12 @@ your chosen sources, picks the next one (shuffle or sequential), and applies it
 with the right tool for your desktop.
 
 **In the project directory:**
-- `setup.sh` — interactive installer (desktop, directories, interval, order); also
+- `linux-wallpaper-rotator.setup.sh` — interactive installer (desktop, directories, interval, order); also
   generates the systemd timer
-- `uninstall.sh` — stops/disables everything and removes installed files (keeps your images)
-- `wallpaper-rotator.sh` — picks the next image (shuffle/sequential), sets it per the chosen desktop
-- `wallpaper-rotator.service` — oneshot unit that runs the script (used by the timer)
-- `wallpaper-rotator-login.service` — oneshot unit that sets a fresh wallpaper
+- `linux-wallpaper-rotator.uninstall.sh` — stops/disables everything and removes installed files (keeps your images)
+- `linux-wallpaper-rotator.sh` — picks the next image (shuffle/sequential), sets it per the chosen desktop
+- `linux-wallpaper-rotator.service` — oneshot unit that runs the script (used by the timer)
+- `linux-wallpaper-rotator-login.service` — oneshot unit that sets a fresh wallpaper
   at every login / session start (boot, logout→login, shutdown→start)
 
 **Installed on your system:**

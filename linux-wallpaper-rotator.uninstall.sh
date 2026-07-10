@@ -122,6 +122,6 @@ if [ "${#WALLPAPER_DIRS[@]}" -gt 0 ]; then
 fi
 echo
 printf '%s\n' "$LINE"
-printf "    %-12s   →   %s\n" "Re-install" "./setup.sh"
+printf "    %-12s   →   %s\n" "Re-install" "./linux-wallpaper-rotator.setup.sh"
 printf '%s\n' "$LINE"
 echo
