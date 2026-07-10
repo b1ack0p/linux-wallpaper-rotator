@@ -8,11 +8,15 @@ set -e
 CFG="${XDG_CONFIG_HOME:-$HOME/.config}"
 CONF="$CFG/wallpaper-rotator.conf"
 STATE="$CFG/wallpaper-rotator.last"
+DECK="$CFG/wallpaper-rotator.deck"
 CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/wallpaper-rotator"
 BIN="$HOME/.local/bin/wallpaper-rotator.sh"
 UNIT_DIR="$HOME/.config/systemd/user"
 
+LINE="────────────────────────────────────────────────────────────"
 bold() { printf '\033[1m%s\033[0m\n' "$1"; }
+step() { echo; printf '%s\n' "$LINE"; bold "  $1"; printf '%s\n' "$LINE"; }
+srow() { printf "    %-12s :  %s\n" "$1" "$2"; }
 
 # Read the desktop + directory list from the config before we delete it.
 DE="gnome"; WALLPAPER_DIRS=()
@@ -51,7 +55,9 @@ reset_wallpaper() {
 }
 
 echo
-bold "== Wallpaper Rotator uninstall =="
+printf '%s\n' "$LINE"
+bold "  WALLPAPER ROTATOR — UNINSTALL"
+printf '%s\n' "$LINE"
 
 # Nothing to do if none of the installed artifacts are present.
 if [ ! -e "$BIN" ] && [ ! -e "$CONF" ] && [ ! -e "$STATE" ] \
@@ -65,41 +71,57 @@ if [ ! -e "$BIN" ] && [ ! -e "$CONF" ] && [ ! -e "$STATE" ] \
   exit 0
 fi
 
-# ---- stop + disable all units (ignore if already gone) -------------------
-systemctl --user disable --now wallpaper-rotator.timer         >/dev/null 2>&1 || true
-systemctl --user disable --now wallpaper-rotator-login.service >/dev/null 2>&1 || true
-systemctl --user stop          wallpaper-rotator.service       >/dev/null 2>&1 || true
-
-# ---- reset to the system default wallpaper (timer is already stopped) -----
+# ---- stop + disable the systemd user units -------------------------------
+step "Stopping services"
+for unit in wallpaper-rotator.timer wallpaper-rotator-login.service wallpaper-rotator.service; do
+  [ -e "$UNIT_DIR/$unit" ] || continue
+  systemctl --user disable --now "$unit" >/dev/null 2>&1 \
+    || systemctl --user stop "$unit" >/dev/null 2>&1 || true
+  echo "  [OK]  Disabled and stopped $unit"
+done
 RESET=1; reset_wallpaper || RESET=0
+if [ "$RESET" = 1 ]; then echo "  [OK]  Reset desktop wallpaper to the system default"; fi
 
 # ---- remove installed files + cache --------------------------------------
-rm -f "$BIN" \
-      "$UNIT_DIR/wallpaper-rotator.service" \
-      "$UNIT_DIR/wallpaper-rotator.timer" \
-      "$UNIT_DIR/wallpaper-rotator-login.service" \
-      "$CONF" \
-      "$STATE"
-rm -rf "$CACHE"
+step "Removing files"
+for f in "$BIN" \
+         "$UNIT_DIR/wallpaper-rotator.service" \
+         "$UNIT_DIR/wallpaper-rotator.timer" \
+         "$UNIT_DIR/wallpaper-rotator-login.service" \
+         "$CONF" "$STATE" "$DECK"; do
+  [ -e "$f" ] || continue
+  rm -f "$f"
+  echo "  [OK]  Removed  $f"
+done
+if [ -e "$CACHE" ]; then
+  rm -rf "$CACHE"
+  echo "  [OK]  Removed  $CACHE/"
+fi
 
 systemctl --user daemon-reload
 systemctl --user reset-failed wallpaper-rotator.timer wallpaper-rotator-login.service >/dev/null 2>&1 || true
 
 # ---- summary -------------------------------------------------------------
 echo
-bold "== Removed =="
-echo "  timer, login service, script, units, config and cache are gone."
+printf '%s\n' "$LINE"
+bold "  [SUCCESS]  Uninstall complete"
+printf '%s\n' "$LINE"
+echo
 if [ "$RESET" = 1 ]; then
-  echo "  The desktop has been reset to its default wallpaper."
+  srow "Wallpaper" "reset to system default"
 else
-  echo "  Rotation has stopped; your current wallpaper stays as-is."
+  srow "Wallpaper" "unchanged (current stays)"
 fi
+srow "Services" "disabled and removed"
+srow "Config"   "removed"
+srow "Cache"    "removed"
 if [ "${#WALLPAPER_DIRS[@]}" -gt 0 ]; then
   echo
-  echo "  Your images were left untouched in:"
-  printf '    %s\n' "${WALLPAPER_DIRS[@]}"
-  echo "  (delete those directories yourself if you no longer want them)"
+  echo "    Your wallpaper images were left untouched in:"
+  printf '      %s\n' "${WALLPAPER_DIRS[@]}"
 fi
 echo
-echo "Re-install anytime with: ./setup.sh"
+printf '%s\n' "$LINE"
+printf "    %-12s   →   %s\n" "Re-install" "./setup.sh"
+printf '%s\n' "$LINE"
 echo
