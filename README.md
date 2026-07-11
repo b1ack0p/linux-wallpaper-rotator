@@ -197,7 +197,9 @@ distribution's logo just above it. Controlled by `SHOW_LABEL` in the config
 
 **Requires [ImageMagick](https://imagemagick.org)** (`magick`, or the older
 `convert`). If it isn't installed the script logs a note and falls back to the
-plain image. Install it with e.g. `sudo apt install imagemagick`.
+plain image. Install it with e.g. `sudo apt install imagemagick`. The label
+colour is chosen by a small `python3` helper installed alongside the script; if
+`python3` is missing the label falls back to a neutral tone.
 
 The labeled copies live in `~/.cache/wallpaper-rotator/` and are regenerated
 each change (old ones are cleaned up), so this costs a little CPU and disk per
