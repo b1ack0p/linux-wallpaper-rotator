@@ -85,6 +85,7 @@ if [ "$RESET" = 1 ]; then echo "  [OK]  Reset desktop wallpaper to the system de
 # ---- remove installed files + cache --------------------------------------
 step "Removing files"
 for f in "$BIN" \
+         "$HOME/.local/bin/wallpaper-rotator-colour.py" \
          "$UNIT_DIR/wallpaper-rotator.service" \
          "$UNIT_DIR/wallpaper-rotator.timer" \
          "$UNIT_DIR/wallpaper-rotator-login.service" \

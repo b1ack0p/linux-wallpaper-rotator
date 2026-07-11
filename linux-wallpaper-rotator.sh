@@ -78,16 +78,22 @@ im_bin() {
   return 0
 }
 
-# Choose the label colour from the image's palette. Reads an ImageMagick "%c"
-# Reads a 64-colour histogram on stdin plus the spot behind the label (args 1-3), the
-# whole-image average (args 4-6), and the patch colours actually behind the label as
-# "cnt,R,G,B;..." (arg 7). Echoes "#rrggbb". For each palette colour it scores salience
-# (distance from the image average) times a vivid bonus times readability^2, where
-# readability is the worst-case contrast against every colour in the patch. So it takes a
-# striking image colour when one reads clearly (a red door, a blue sky, an eye), the image
-# own most contrasting real tone on a monochrome image (snow, a silhouette, an outline
-# grey -- never a synthetic tint), and the least-bad colour on a hopeless multicolour
-# patch. POSIX-awk (mawk and gawk).
+# Locate the Python label-colour picker (installed next to this script, or in the
+# source tree). Empty if not found; the shell then falls back to the awk picker.
+SELFDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd || true)"
+COLOUR_PY=""
+for _c in "$SELFDIR/wallpaper-rotator-colour.py" "$SELFDIR/linux-wallpaper-rotator-colour.py"; do
+  [ -f "$_c" ] && { COLOUR_PY="$_c"; break; }
+done
+
+# Fallback label-colour picker (used only when the Python picker is unavailable).
+# Reads a 64-colour ImageMagick histogram on stdin plus the spot behind the label
+# (args 1-3), the whole-image average (args 4-6), and the patch colours behind the
+# label as "cnt,R,G,B;..." (arg 7); echoes "#rrggbb". Each palette colour is scored
+# by salience (distance from the image average) x a vivid bonus x readability^2,
+# where readability is the worst-case contrast against every colour in the patch:
+# a striking colour wins when it reads, the most contrasting real tone wins on
+# monochrome art, and the least-bad tone wins on a busy patch. POSIX awk.
 pick_colour() {
   awk -v sr="$1" -v sg="$2" -v sb="$3" -v mr="$4" -v mg="$5" -v mb="$6" -v pp="$7" '
   function lin(c){ c/=255; return (c<=0.04045)? c/12.92 : exp(2.4*log((c+0.055)/1.055)) }
@@ -106,13 +112,14 @@ pick_colour() {
          for(j=1;j<=np;j++){ if(PCH[j]=="") continue; if(split(PCH[j],q,",")<4) continue
            npc++; pw[npc]=q[1]+0; py[npc]=relY(q[2],q[3],q[4])
            setlab(q[2],q[3],q[4]); pa[npc]=_A; pb[npc]=_B; ptot+=q[1]+0 }
-         CVIV=18; CMIN=40; best=0 }               # CVIV = chroma above which a colour counts as "vivid"
+         CVIV=18; CMIN=40; best=0; maxC=0 }       # CVIV = chroma above which a colour counts as "vivid"
   {
     ci=index($0,":"); if(ci<=0) next; cnt=substr($0,1,ci-1)+0; if(cnt<CMIN) next;
     p1=index($0,"("); p2=index($0,")"); if(p1<=0||p2<=p1) next;
     trip=substr($0,p1+1,p2-p1-1); gsub(/[^0-9,]/,"",trip);
     if(split(trip,a,",")<3) next;
     setlab(a[1],a[2],a[3]); cC=sqrt(_A*_A+_B*_B); pY=relY(a[1],a[2],a[3]);
+    if(cC>maxC) maxC=cC;                          # most colourful real tone seen (0 on greyscale art)
     # Readability R = worst-case luminance contrast against every significant colour actually
     # behind the label. A colour that matches any tile in a busy patch scores as unreadable,
     # so on a hopeless multicolour patch the least-bad (most readable) tone still wins.
@@ -133,12 +140,18 @@ pick_colour() {
     if(s>best){ best=s; br=a[1]; bg=a[2]; bb=a[3] }
   }
   END{
-    if(best<=0){ if(fbR>0){ br=fr; bg=fg; bb=fb } else { br=(sY>0.5?20:240); bg=br; bb=br } }  # last resort
-    # Gentle legibility floor against the patch average, keeping the hue.
-    up=(relY(br,bg,bb)>=sY)
-    for(t=0;t<24;t++){ pY=relY(br,bg,bb); hi=(pY>sY?pY:sY); lo=(pY>sY?sY:pY)
-      if((hi+0.05)/(lo+0.05)>=1.9) break
-      if(up){ br+=(255-br)*0.10; bg+=(255-bg)*0.10; bb+=(255-bb)*0.10 } else { br*=0.92; bg*=0.92; bb*=0.92 } }
+    usedfb=0
+    if(best<=0){ if(fbR>0){ br=fr; bg=fg; bb=fb; usedfb=1 } else { br=(sY>0.5?20:240); bg=br; bb=br } }  # last resort
+    # Monochrome art with no readable vivid tone: keep its own most-contrasting real
+    # tone (a subject outline) as-is rather than inflating it toward a synthetic
+    # near-white; on flat-grey art, fidelity to the drawing wins.
+    if( !(usedfb && maxC < CVIV) ){
+      # Gentle legibility floor against the patch average, keeping the hue.
+      up=(relY(br,bg,bb)>=sY)
+      for(t=0;t<24;t++){ pY=relY(br,bg,bb); hi=(pY>sY?pY:sY); lo=(pY>sY?sY:pY)
+        if((hi+0.05)/(lo+0.05)>=1.9) break
+        if(up){ br+=(255-br)*0.10; bg+=(255-bg)*0.10; bb+=(255-bb)*0.10 } else { br*=0.92; bg*=0.92; bb*=0.92 } }
+    }
     printf "#%02x%02x%02x", int(br+0.5), int(bg+0.5), int(bb+0.5)
   }'
 }
@@ -488,23 +501,35 @@ if [ "$SHOW_LABEL" = "yes" ]; then
     # Sample the spot behind the label (fixed bottom-right region of the canvas).
     SAMPW=$(( ${TXTW:-300} )); [ "$LH" -gt "$SAMPW" ] && SAMPW="$LH"; SAMPW=$(( SAMPW + 20 ))
     SAMPH=$(( LDY + LH - MB + 20 ))
-    SPOTRGB="$("$IM" "$CANVAS" -gravity SouthEast -crop "${SAMPW}x${SAMPH}+${MR}+${MB}" +repage \
-              -resize 1x1! -format '%[fx:int(255*r)] %[fx:int(255*g)] %[fx:int(255*b)]' info: 2>/dev/null)"
-    [ -n "$SPOTRGB" ] || SPOTRGB="128 128 128"
-    # The actual dominant colours behind the label ("cnt,R,G,B;..."), so pick_colour can
-    # measure worst-case readability against every colour in the patch, not just its average.
-    PATCHCOL="$("$IM" "$CANVAS" -gravity SouthEast -crop "${SAMPW}x${SAMPH}+${MR}+${MB}" +repage \
-              -resize 60x40 -colors 8 -depth 8 -format '%c' histogram:info:- 2>/dev/null \
-              | awk '{ci=index($0,":"); c=substr($0,1,ci-1)+0; p1=index($0,"(");p2=index($0,")");
-                      if(p1<=0||p2<=p1)next; t=substr($0,p1+1,p2-p1-1); gsub(/[^0-9,]/,"",t);
-                      if(split(t,x,",")>=3) printf "%d,%d,%d,%d;", c, x[1], x[2], x[3]}')"
-    # Whole-image average colour, so pick_colour can find the most salient tone.
-    MEANRGB="$("$IM" "$CANVAS" -alpha off -resize 1x1! \
-              -format '%[fx:int(255*r)] %[fx:int(255*g)] %[fx:int(255*b)]' info: 2>/dev/null)"
-    [ -n "$MEANRGB" ] || MEANRGB="128 128 128"
-    # Pick a readable colour from the image's own palette (see pick_colour).
-    COLOR="$("$IM" "$CANVAS" -alpha off -resize 300x300 -colors 64 -depth 8 \
-              -format '%c' histogram:info:- 2>/dev/null | pick_colour $SPOTRGB $MEANRGB "$PATCHCOL")"
+    # Pick the label colour. The Python picker (spatial, CIELAB, readability-aware:
+    # a saturated accent on colour images, the lightest/darkest tone by the spot on
+    # monochrome art) is preferred; if Python or the picker file is missing we fall
+    # back to the awk picker, which needs the spot/patch/mean samples below.
+    COLOR=""
+    if [ -n "$COLOUR_PY" ] && command -v python3 >/dev/null 2>&1; then
+      COLOR="$("$IM" "$CANVAS" -alpha off -resize 500x -depth 8 RGB:- 2>/dev/null \
+                | python3 "$COLOUR_PY" --sw "$SW" --sh "$SH" --w 500 \
+                    --patch "$MR $MB $SAMPW $SAMPH" 2>/dev/null)"
+    fi
+    if [ -z "$COLOR" ]; then
+      # Spot behind the label (its area average).
+      SPOTRGB="$("$IM" "$CANVAS" -gravity SouthEast -crop "${SAMPW}x${SAMPH}+${MR}+${MB}" +repage \
+                -resize 1x1! -format '%[fx:int(255*r)] %[fx:int(255*g)] %[fx:int(255*b)]' info: 2>/dev/null)"
+      [ -n "$SPOTRGB" ] || SPOTRGB="128 128 128"
+      # The actual dominant colours behind the label ("cnt,R,G,B;..."), so pick_colour can
+      # measure worst-case readability against every colour in the patch, not just its average.
+      PATCHCOL="$("$IM" "$CANVAS" -gravity SouthEast -crop "${SAMPW}x${SAMPH}+${MR}+${MB}" +repage \
+                -resize 60x40 -colors 8 -depth 8 -format '%c' histogram:info:- 2>/dev/null \
+                | awk '{ci=index($0,":"); c=substr($0,1,ci-1)+0; p1=index($0,"(");p2=index($0,")");
+                        if(p1<=0||p2<=p1)next; t=substr($0,p1+1,p2-p1-1); gsub(/[^0-9,]/,"",t);
+                        if(split(t,x,",")>=3) printf "%d,%d,%d,%d;", c, x[1], x[2], x[3]}')"
+      # Whole-image average colour, so pick_colour can find the most salient tone.
+      MEANRGB="$("$IM" "$CANVAS" -alpha off -resize 1x1! \
+                -format '%[fx:int(255*r)] %[fx:int(255*g)] %[fx:int(255*b)]' info: 2>/dev/null)"
+      [ -n "$MEANRGB" ] || MEANRGB="128 128 128"
+      COLOR="$("$IM" "$CANVAS" -alpha off -resize 300x300 -colors 64 -depth 8 \
+                -format '%c' histogram:info:- 2>/dev/null | pick_colour $SPOTRGB $MEANRGB "$PATCHCOL")"
+    fi
     [ -n "$COLOR" ] || COLOR="#f5f5f5"
     # Stamp emblem + text at the fixed position. -density 512 renders the SVG sharp;
     # reset to 72 before -annotate so the text point size is in pixels. Text-only fallback.

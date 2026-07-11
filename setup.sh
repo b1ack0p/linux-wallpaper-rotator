@@ -198,6 +198,8 @@ step "Installing"
 PHASE="copying files"
 mkdir -p "$HOME/.local/bin" "$UNIT_DIR" "$DIR"
 install -m 755 "$HERE/linux-wallpaper-rotator.sh"            "$BIN"
+# The label-colour picker, installed next to the script so it can find it.
+install -m 755 "$HERE/linux-wallpaper-rotator-colour.py"    "$HOME/.local/bin/wallpaper-rotator-colour.py"
 install -m 644 "$HERE/linux-wallpaper-rotator.service"       "$UNIT_DIR/wallpaper-rotator.service"
 install -m 644 "$HERE/linux-wallpaper-rotator-login.service" "$UNIT_DIR/wallpaper-rotator-login.service"
 echo "  [OK]  Script and service files installed."
