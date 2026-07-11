@@ -32,8 +32,10 @@ everything installs under your home directory.
 - The wallpaper tool for your desktop (already installed with that desktop):
   `gsettings` (GNOME/Cinnamon/MATE), `plasma-apply-wallpaperimage` (KDE),
   `xfconf-query` (XFCE), `pcmanfm`/`pcmanfm-qt` (LXDE/LXQt), or `feh` (X11)
-- *Optional:* [ImageMagick](https://imagemagick.org) — only if you turn on
-  [the on-image label (distro name + kernel and logo)](#show-a-label-on-the-wallpaper)
+- *Optional:* [ImageMagick](https://imagemagick.org) and `python3` — only if you
+  turn on [the on-image label (distro name + kernel and logo)](#show-a-label-on-the-wallpaper);
+  setup installs both automatically. ImageMagick stamps the label, `python3`
+  chooses its colour.
 
 ---
 

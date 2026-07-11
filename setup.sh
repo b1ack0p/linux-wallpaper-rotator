@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Setup for the Linux wallpaper rotator: installs a systemd user timer and login
-# service, writes the configuration, and (if the label is enabled) installs
-# ImageMagick. Interactive; run from the project directory.
+# service, writes the configuration, and (if the label is enabled) installs the
+# label dependencies (ImageMagick + python3). Interactive; run from the project
+# directory.
 set -e
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -82,30 +83,33 @@ ask_text() {   # ask_text "explanation" default [hint]
 # Aligned "Label : value" row for the final summary.
 srow() { printf "    %-19s :  %s\n" "$1" "$2"; }
 
-# Install ImageMagick (label stamping) and jpegtran (transcodes progressive JPEGs
-# to baseline, working around libjpeg builds that garble them). Installs only what
-# is missing. Best-effort; uses the system package manager, may prompt for sudo.
+# Install the label dependencies: ImageMagick (stamps the label), jpegtran
+# (transcodes progressive JPEGs to baseline, working around libjpeg builds that
+# garble them), and python3 (chooses the label colour). Installs only what is
+# missing. Best-effort; uses the system package manager, may prompt for sudo.
 install_deps() {
-  local need_im=1 need_jt=1
+  local need_im=1 need_jt=1 need_py=1
   { command -v magick || command -v convert; } >/dev/null 2>&1 && need_im=0
   command -v jpegtran >/dev/null 2>&1 && need_jt=0
-  [ "$need_im" = 0 ] && [ "$need_jt" = 0 ] && return 0
+  command -v python3  >/dev/null 2>&1 && need_py=0
+  [ "$need_im" = 0 ] && [ "$need_jt" = 0 ] && [ "$need_py" = 0 ] && return 0
   local SUDO=""
   [ "$(id -u)" -ne 0 ] && { command -v sudo >/dev/null 2>&1 && SUDO="sudo" || return 1; }
-  local mgr imp jtp
-  if   command -v apt-get >/dev/null 2>&1; then mgr="$SUDO apt-get install -y";     imp=imagemagick; jtp=libjpeg-turbo-progs; $SUDO apt-get update -qq
-  elif command -v dnf     >/dev/null 2>&1; then mgr="$SUDO dnf install -y";         imp=ImageMagick; jtp=libjpeg-turbo-utils
-  elif command -v yum     >/dev/null 2>&1; then mgr="$SUDO yum install -y";         imp=ImageMagick; jtp=libjpeg-turbo-utils
-  elif command -v pacman  >/dev/null 2>&1; then mgr="$SUDO pacman -S --noconfirm";  imp=imagemagick; jtp=libjpeg-turbo
-  elif command -v zypper  >/dev/null 2>&1; then mgr="$SUDO zypper install -y";      imp=ImageMagick; jtp=libjpeg-turbo
-  elif command -v apk     >/dev/null 2>&1; then mgr="$SUDO apk add";                imp=imagemagick; jtp=libjpeg-turbo-utils
+  local mgr imp jtp pyp
+  if   command -v apt-get >/dev/null 2>&1; then mgr="$SUDO apt-get install -y";     imp=imagemagick; jtp=libjpeg-turbo-progs; pyp=python3; $SUDO apt-get update -qq
+  elif command -v dnf     >/dev/null 2>&1; then mgr="$SUDO dnf install -y";         imp=ImageMagick; jtp=libjpeg-turbo-utils; pyp=python3
+  elif command -v yum     >/dev/null 2>&1; then mgr="$SUDO yum install -y";         imp=ImageMagick; jtp=libjpeg-turbo-utils; pyp=python3
+  elif command -v pacman  >/dev/null 2>&1; then mgr="$SUDO pacman -S --noconfirm";  imp=imagemagick; jtp=libjpeg-turbo;       pyp=python
+  elif command -v zypper  >/dev/null 2>&1; then mgr="$SUDO zypper install -y";      imp=ImageMagick; jtp=libjpeg-turbo;       pyp=python3
+  elif command -v apk     >/dev/null 2>&1; then mgr="$SUDO apk add";                imp=imagemagick; jtp=libjpeg-turbo-utils; pyp=python3
   else return 1
   fi
   local pkgs=""
   [ "$need_im" = 1 ] && pkgs="$imp"
   [ "$need_jt" = 1 ] && pkgs="$pkgs $jtp"
+  [ "$need_py" = 1 ] && pkgs="$pkgs $pyp"
   $mgr $pkgs
-  { command -v magick || command -v convert; } >/dev/null 2>&1
+  { command -v magick || command -v convert; } >/dev/null 2>&1 && command -v python3 >/dev/null 2>&1
 }
 
 # ---- defaults ------------------------------------------------------------
@@ -182,7 +186,7 @@ while [ "$cur" -le 4 ]; do
              fi ;;
           3) redraw4 label
              c="$(ask_choice "Stamp a label (distro name, kernel, logo) on each wallpaper." "$([ "$SHOW_LABEL" = yes ] && echo 1 || echo 2)" \
-                "On — requires ImageMagick (installed automatically)" "Off")"
+                "On — needs ImageMagick + python3 (installed automatically)" "Off")"
              [ "$c" = 2 ] && SHOW_LABEL="no" || SHOW_LABEL="yes" ;;
         esac
       done ;;
@@ -260,11 +264,17 @@ systemctl --user enable      wallpaper-rotator-login.service >/dev/null 2>&1
 echo "  [OK]  Timer and login service enabled."
 
 if [ "$SHOW_LABEL" = yes ]; then
-  PHASE="installing ImageMagick + jpegtran"
-  if install_deps; then
-    echo "  [OK]  ImageMagick and jpegtran are available."
+  PHASE="installing label dependencies (ImageMagick, jpegtran, python3)"
+  install_deps || true
+  if { command -v magick || command -v convert; } >/dev/null 2>&1; then
+    echo "  [OK]  ImageMagick is available (label stamping)."
   else
     echo "  [!!]  ImageMagick could not be installed — the label is skipped until it is."
+  fi
+  if command -v python3 >/dev/null 2>&1; then
+    echo "  [OK]  python3 is available (label colour) — $(python3 --version 2>&1)."
+  else
+    echo "  [!!]  python3 could not be installed — the label uses a neutral colour until it is."
   fi
 fi
 PHASE=""
