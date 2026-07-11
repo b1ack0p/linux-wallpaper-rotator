@@ -181,11 +181,10 @@ distribution's logo just above it. Controlled by `SHOW_LABEL` in the config
     joined with underscores;
   - uses your **desktop's own UI font** (from the GSettings interface font,
     falling back to fontconfig's default sans);
-  - is a **random colour**, fresh each time the wallpaper changes (so even the
-    same image gets a different colour on re-show) — mostly a vivid **neon**
-    (random hue, full saturation), sometimes a neutral **black / grey / white**.
-    Its lightness is set by the spot behind the text (a light shade over a dark
-    spot, a dark shade over a light one) so it stays readable. No outline or
+  - is a **real colour taken from the wallpaper itself** — never a synthetic or
+    random tint. A saturated accent (a "pop") is used when one reads clearly on
+    the spot behind the text; otherwise the lightest tone over a dark spot, or
+    the darkest over a light one, so it always stays readable. No outline or
     shadow — one solid colour;
   - carries the **running distro's emblem** above it (Debian swirl, Arch, Ubuntu,
     Fedora, openSUSE, Gentoo, Mint, Manjaro, …), found via the freedesktop

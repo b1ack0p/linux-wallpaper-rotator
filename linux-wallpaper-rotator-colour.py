@@ -308,8 +308,6 @@ def main():
     #   * the lightest tone on a dark/mid spot, the darkest on a light spot.
     # A saturated colour that fills most of the frame is the background field, not
     # a pop, so it defers to the extreme tone.
-    colorful = [c for c in sig if c.c >= 12.0]
-
     chosen = None
     if monochrome:
         # Close-shade greyscale has no tone that contrasts strongly, so readability
@@ -322,6 +320,7 @@ def main():
             ah = hue_of(vivid)
             # Count coverage only from strong, non-near-black tones of the hue, so a
             # faint background tint is not mistaken for a full-frame field.
+            colorful = [c for c in sig if c.c >= 12.0]
             strong = [c for c in colorful if c.c >= 18.0 and c.y >= 0.06]
             vfrac = sum(c.n for c in strong
                         if abs((hue_of(c) - ah + 180.0) % 360.0 - 180.0) <= 25.0) / total
